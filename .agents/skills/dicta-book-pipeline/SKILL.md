@@ -13,7 +13,7 @@ You are running a multi-stage pipeline that bridges Step 5.3 of [dicta-automatio
 
 ## מוסכמות הפלט (חובה)
 
-הקובץ נפתח בעורך `.claude/skills/dicta-book-pipeline/scripts/עריכת ספר באוצריא.html`, שעובד שורה‑אחר‑שורה. הקובץ תקין רק אם הוא עומד בכל הכללים הבאים. חלק מהכללים נאכפים ע"י `validate-otzaria` (ראה Stage 6), וחלקם דורשים בדיקת AI/סקירה עצמאית כי הם תלויים בהבנת תוכן. לעולם אל תניח שה‑CLI כיסה כלל שאינו מופיע בפלט שלו.
+הקובץ נפתח בעורך `.Codex/skills/dicta-book-pipeline/scripts/עריכת ספר באוצריא.html`, שעובד שורה‑אחר‑שורה. הקובץ תקין רק אם הוא עומד בכל הכללים הבאים. חלק מהכללים נאכפים ע"י `validate-otzaria` (ראה Stage 6), וחלקם דורשים בדיקת AI/סקירה עצמאית כי הם תלויים בהבנת תוכן. לעולם אל תניח שה‑CLI כיסה כלל שאינו מופיע בפלט שלו.
 
 ### גבול חשוב: כותרות מול גוף הספר
 
@@ -51,14 +51,14 @@ Ask for whatever is missing — but only ask once per conversation, and **do not
 | Input | How to obtain |
 |---|---|
 | הנתיב לקובץ ה‑TXT של דיקטה (לא ערוך או חצי-ערוך) | שאל את המשתמש או קבל בהפעלה |
-| נתיב ל‑DB של קטלוג HebrewBooks | **ברירת מחדל**: `~/Downloads/otzaria_latest/otzaria/otzar-HB_catalog.db`. אפשר להעביר גם ב‑`--db`, או לשמור כ‑`HB_CATALOG_DB` ב‑`.claude/skills/dicta-book-pipeline/.env.local` |
+| נתיב ל‑DB של קטלוג HebrewBooks | **ברירת מחדל**: `~/Downloads/otzaria_latest/otzaria/otzar-HB_catalog.db`. אפשר להעביר גם ב‑`--db`, או לשמור כ‑`HB_CATALOG_DB` ב‑`.Codex/skills/dicta-book-pipeline/.env.local` |
 | נתיב ל‑`seforim.db` של אוצריא | **ברירת מחדל**: `~/Downloads/otzaria_latest/otzaria/seforim.db`. נדרש רק לבדיקות צולבות מול טקסט הש"ס ב‑Stage 6 |
-| URL + API key של שרת ה‑OCR | env vars `OCRWIN_URL`, `OCRWIN_API_KEY`. אם חסרים — שאל וצור `.claude/skills/dicta-book-pipeline/.env.local` (gitignored) |
+| URL + API key של שרת ה‑OCR | env vars `OCRWIN_URL`, `OCRWIN_API_KEY`. אם חסרים — שאל וצור `.Codex/skills/dicta-book-pipeline/.env.local` (gitignored) |
 | **שם משתמש + סיסמה ל‑otzaria.org** | **רק אם** המשתמש מבקש להוריד ספר מהאתר (Stage 0). **שאל את המשתמש בכל פעם.** אסור לשמור/לכתוב לקובץ/לזכור — ראה Stage 0 |
 
 ### זיכרון/קונפיגורציה מקומית ל‑DB
 
-אם נתיב ברירת המחדל ל‑DB לא קיים והמשתמש מסר נתיב חלופי, שמור את הנתיב בזיכרון המקומי המתמיד של הסוכן אם זמין. אם אין זיכרון מתמיד זמין, כתוב אותו ל‑`.claude/skills/dicta-book-pipeline/.env.local` בשדות:
+אם נתיב ברירת המחדל ל‑DB לא קיים והמשתמש מסר נתיב חלופי, שמור את הנתיב בזיכרון המקומי המתמיד של הסוכן אם זמין. אם אין זיכרון מתמיד זמין, כתוב אותו ל‑`.Codex/skills/dicta-book-pipeline/.env.local` בשדות:
 
 ```env
 HB_CATALOG_DB=/path/to/otzar-HB_catalog.db
@@ -184,7 +184,7 @@ tags           TEXT                  ← מערך JSON (הסקריפט פורס�
 1. **הסק את שם הספר מה‑TXT הנכנס**: התוכן של `<h1>` בשורה הראשונה. אם הוא מכיל "על מסכת X" / "על X", שווה לנסות גם בלי הסיומת — מחבר עשוי להופיע בקטלוג בצורה אחרת.
 2. **הרץ את החיפוש**:
    ```bash
-   python .claude/skills/dicta-book-pipeline/scripts/search_hb.py --title "<book>" --json
+   python .Codex/skills/dicta-book-pipeline/scripts/search_hb.py --title "<book>" --json
    ```
    - הסקריפט מחזיר עד 25 תוצאות, ממוינות לפי דמיון (התאמה מדויקת → התחלה → הכלה → מילים משותפות).
    - אם הסקריפט שגיאה "DB not found" — ורק אז שאל את המשתמש על נתיב חלופי, והעבר אותו ב‑`--db`.
@@ -205,7 +205,7 @@ tags           TEXT                  ← מערך JSON (הסקריפט פורס�
 URL ההורדה: `https://download.hebrewbooks.org/downloadhandler.ashx?req=<ID>` — זהה לכל הספרים.
 
 ```bash
-python .claude/skills/dicta-book-pipeline/scripts/download_pdf.py --id <ID> --out /tmp/dicta_pipeline/<book>/source.pdf
+python .Codex/skills/dicta-book-pipeline/scripts/download_pdf.py --id <ID> --out /tmp/dicta_pipeline/<book>/source.pdf
 ```
 
 הסקריפט שומר ל‑cache; אם הקובץ קיים — לא יוריד שוב.
@@ -213,8 +213,8 @@ python .claude/skills/dicta-book-pipeline/scripts/download_pdf.py --id <ID> --ou
 ## Stage 3 — Convert PDF to images and OCR
 
 ```bash
-python .claude/skills/dicta-book-pipeline/scripts/pdf_to_pages.py --pdf <pdf> --out-dir /tmp/dicta_pipeline/<book>/pages --dpi 300
-python .claude/skills/dicta-book-pipeline/scripts/ocr_batch.py --in-dir <pages> --out /tmp/dicta_pipeline/<book>/ocr.txt --concurrency 8
+python .Codex/skills/dicta-book-pipeline/scripts/pdf_to_pages.py --pdf <pdf> --out-dir /tmp/dicta_pipeline/<book>/pages --dpi 300
+python .Codex/skills/dicta-book-pipeline/scripts/ocr_batch.py --in-dir <pages> --out /tmp/dicta_pipeline/<book>/ocr.txt --concurrency 8
 ```
 
 - ה‑OCR יוצר קובץ אחד שמרכז את כל העמודים, עם מפריד `\n\n=== PAGE N ===\n\n`.
@@ -223,7 +223,7 @@ python .claude/skills/dicta-book-pipeline/scripts/ocr_batch.py --in-dir <pages> 
 
 ## Stage 3.5 — Split & normalize (deterministic)
 
-רוץ תמיד, גם כש‑OCR מדולג. ה‑CLI הדטרמיניסטי הוא חלק מהסקיל ו**עצמאי לחלוטין** — אפס תלות במאגרים חיצוניים או ב‑venv: `.claude/skills/dicta-book-pipeline/scripts/edit_dicta_cli.py`. לוגיקת העריכה מוטמעת תחת `scripts/_editlib/`, כך שאפשר להריץ עם **כל פייתון 3 רגיל** (`python`). כל תת‑פקודה תומכת `--file`/`--json`, קוד יציאה 0/1/2.
+רוץ תמיד, גם כש‑OCR מדולג. ה‑CLI הדטרמיניסטי הוא חלק מהסקיל ו**עצמאי לחלוטין** — אפס תלות במאגרים חיצוניים או ב‑venv: `.Codex/skills/dicta-book-pipeline/scripts/edit_dicta_cli.py`. לוגיקת העריכה מוטמעת תחת `scripts/_editlib/`, כך שאפשר להריץ עם **כל פייתון 3 רגיל** (`python`). כל תת‑פקודה תומכת `--file`/`--json`, קוד יציאה 0/1/2.
 
 > **עיקרון‑על (חובה): העדף תמיד את הכלים הדטרמיניסטיים על פני עריכה ידנית.** ה‑CLI עוטף 1:1 את אותם כלים שעורכי האנוש משתמשים בהם באפליקציית EditingDictaBooks. לכל טרנספורמציה מכנית — יצירת כותרות, נרמול דפים, ניקוי, הדגשה, שינוי רמה — הרץ את הכלי המתאים. **ערוך/הצע ידנית רק את מה ששום כלי לא יודע לעשות**: שם פרק קנוני, החלטת רמה היררכית, פירוק/איחוד שדורש הבנת תוכן, ומקרים דו‑משמעיים. כלי ה‑CLI:
 >
@@ -283,7 +283,7 @@ python .claude/skills/dicta-book-pipeline/scripts/ocr_batch.py --in-dir <pages> 
 ## Stage 5 — OCR diff (LLM Pass D — only on flagged regions)
 
 ```bash
-python .claude/skills/dicta-book-pipeline/scripts/diff_texts.py --dicta <dicta.txt> --ocr <ocr.txt> --out /tmp/dicta_pipeline/<book>/diff.json --threshold 0.85
+python .Codex/skills/dicta-book-pipeline/scripts/diff_texts.py --dicta <dicta.txt> --ocr <ocr.txt> --out /tmp/dicta_pipeline/<book>/diff.json --threshold 0.85
 ```
 
 הסקריפט מציג רק קטעים שבהם דמיון פאזי < threshold. עבור כל פער:
@@ -303,7 +303,7 @@ python .claude/skills/dicta-book-pipeline/scripts/diff_texts.py --dicta <dicta.t
 
 **הרץ קודם את הגייט הדטרמיניסטי על כל קובץ פלט:**
 ```bash
-python .claude/skills/dicta-book-pipeline/scripts/edit_dicta_cli.py validate-otzaria --file <path> --shas --json   # יחסי לשורש הפרויקט; --shas לש"ס (עמוד ב כפול)
+python .Codex/skills/dicta-book-pipeline/scripts/edit_dicta_cli.py validate-otzaria --file <path> --shas --json   # יחסי לשורש הפרויקט; --shas לש"ס (עמוד ב כפול)
 ```
 פקודה זו אוכפת את המוסכמות הדטרמיניסטיות שה‑CLI יודע לבדוק: תגים, כותרות עם טקסט נלווה, פיצול רב‑מסכתי, גרשיים ב‑`<h1>`, ו‑`<big>` בכותרת/דקורטיבי. היא **אינה** בודקת הבנת תוכן: האם הלמה מלאה, האם כל דיבור הסתיים כקטע עצמאי, האם קטע ארוך צריך פיצול, או האם כותרת פרק קנונית נכונה. קוד יציאה: **0 = עבר** (ירוק), **1 = הפרת מוסכמה קשה**. תקן כל בעיה "קשה" עד ש‑exit=0:
 `multi_masechta`, `h1_gershayim`, `big_in_heading`, `decorative_big`, `opening/closing_without_opening`, `heading_errors`.
