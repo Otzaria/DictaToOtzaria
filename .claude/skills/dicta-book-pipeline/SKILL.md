@@ -79,7 +79,7 @@ SEFORIM_DB=/path/to/seforim.db
 ```bash
 JAR=/tmp/otz_jar.txt; rm -f "$JAR"
 CSRF=$(curl -s -c "$JAR" "https://otzaria.org/api/auth/csrf" \
-  | python3 -c "import sys,json;print(json.load(sys.stdin)['csrfToken'])")
+  | python -c "import sys,json;print(json.load(sys.stdin)['csrfToken'])")
 curl -s -b "$JAR" -c "$JAR" \
   --data-urlencode "csrfToken=$CSRF" \
   --data-urlencode "identifier=<USERNAME>" \
@@ -183,7 +183,7 @@ tags           TEXT                  ← מערך JSON (הסקריפט פורס�
 1. **הסק את שם הספר מה‑TXT הנכנס**: התוכן של `<h1>` בשורה הראשונה. אם הוא מכיל "על מסכת X" / "על X", שווה לנסות גם בלי הסיומת — מחבר עשוי להופיע בקטלוג בצורה אחרת.
 2. **הרץ את החיפוש**:
    ```bash
-   python3 .claude/skills/dicta-book-pipeline/scripts/search_hb.py --title "<book>" --json
+   python .claude/skills/dicta-book-pipeline/scripts/search_hb.py --title "<book>" --json
    ```
    - הסקריפט מחזיר עד 25 תוצאות, ממוינות לפי דמיון (התאמה מדויקת → התחלה → הכלה → מילים משותפות).
    - אם הסקריפט שגיאה "DB not found" — ורק אז שאל את המשתמש על נתיב חלופי, והעבר אותו ב‑`--db`.
@@ -204,7 +204,7 @@ tags           TEXT                  ← מערך JSON (הסקריפט פורס�
 URL ההורדה: `https://download.hebrewbooks.org/downloadhandler.ashx?req=<ID>` — זהה לכל הספרים.
 
 ```bash
-python3 .claude/skills/dicta-book-pipeline/scripts/download_pdf.py --id <ID> --out /tmp/dicta_pipeline/<book>/source.pdf
+python .claude/skills/dicta-book-pipeline/scripts/download_pdf.py --id <ID> --out /tmp/dicta_pipeline/<book>/source.pdf
 ```
 
 הסקריפט שומר ל‑cache; אם הקובץ קיים — לא יוריד שוב.
@@ -212,8 +212,8 @@ python3 .claude/skills/dicta-book-pipeline/scripts/download_pdf.py --id <ID> --o
 ## Stage 3 — Convert PDF to images and OCR
 
 ```bash
-python3 .claude/skills/dicta-book-pipeline/scripts/pdf_to_pages.py --pdf <pdf> --out-dir /tmp/dicta_pipeline/<book>/pages --dpi 300
-python3 .claude/skills/dicta-book-pipeline/scripts/ocr_batch.py --in-dir <pages> --out /tmp/dicta_pipeline/<book>/ocr.txt --concurrency 8
+python .claude/skills/dicta-book-pipeline/scripts/pdf_to_pages.py --pdf <pdf> --out-dir /tmp/dicta_pipeline/<book>/pages --dpi 300
+python .claude/skills/dicta-book-pipeline/scripts/ocr_batch.py --in-dir <pages> --out /tmp/dicta_pipeline/<book>/ocr.txt --concurrency 8
 ```
 
 - ה‑OCR יוצר קובץ אחד שמרכז את כל העמודים, עם מפריד `\n\n=== PAGE N ===\n\n`.
@@ -222,21 +222,44 @@ python3 .claude/skills/dicta-book-pipeline/scripts/ocr_batch.py --in-dir <pages>
 
 ## Stage 3.5 — Split & normalize (deterministic)
 
-רוץ תמיד, גם כש‑OCR מדולג. הסקריפטים ב‑`../EditingDictaBooks/edit_dicta_cli.py` (יחסית לשורש הפרויקט — מאגר EditingDictaBooks הוא תיקייה אחות לפרויקט; תומכים `--json`, קוד יציאה 0/1/2). אם לא נמצא שם — שאל את המשתמש על המיקום.
+רוץ תמיד, גם כש‑OCR מדולג. ה‑CLI הדטרמיניסטי הוא חלק מהסקיל ו**עצמאי לחלוטין** — אפס תלות במאגרים חיצוניים או ב‑venv: `.claude/skills/dicta-book-pipeline/scripts/edit_dicta_cli.py`. לוגיקת העריכה מוטמעת תחת `scripts/_editlib/`, כך שאפשר להריץ עם **כל פייתון 3 רגיל** (`python`). כל תת‑פקודה תומכת `--file`/`--json`, קוד יציאה 0/1/2.
+
+> **עיקרון‑על (חובה): העדף תמיד את הכלים הדטרמיניסטיים על פני עריכה ידנית.** ה‑CLI עוטף 1:1 את אותם כלים שעורכי האנוש משתמשים בהם באפליקציית EditingDictaBooks. לכל טרנספורמציה מכנית — יצירת כותרות, נרמול דפים, ניקוי, הדגשה, שינוי רמה — הרץ את הכלי המתאים. **ערוך/הצע ידנית רק את מה ששום כלי לא יודע לעשות**: שם פרק קנוני, החלטת רמה היררכית, פירוק/איחוד שדורש הבנת תוכן, ומקרים דו‑משמעיים. כלי ה‑CLI:
+>
+> | כלי | תפקיד |
+> |---|---|
+> | `create-headers` | יצירת כותרות מתבנית `<מילה> <גימטריה>` (דף ב, פרק ג) |
+> | `create-single-letter-headers` | יצירת כותרות מאות/מילה בודדת (סימן א) |
+> | `create-page-b-headers` | יצירת כותרת `עמוד ב` מסמן `ע"ב` מוטבע |
+> | `page-number` | נרמול כותרת `דף` ל‑`.`/`:` לפי הסמן בשורה הבאה |
+> | `replace-page-b` | המרת כותרת `עמוד ב` לעמוד ב של הדף הקודם |
+> | `change-heading-level` | המרת רמת כל הכותרות מ‑hN ל‑hM |
+> | `emphasize-first` | הדגשת מילה ראשונה + פיסוק סוף קטע |
+> | `clean-text` | ניקוי גרשיים/רווחים/שורות ריקות |
+> | `validate-tags` / `validate-otzaria` | בדיקות (קריאה בלבד) |
 
 1. **פצל לפי מסכת** — אם יש כמה מסכתות (כמה `<h2>` / קולופונים `תם ונשלם מסכת X` / `סליק מסכת X`), צור קובץ נפרד לכל מסכת עם `<h1>` משלו בתבנית `<שם הספר> על <מסכת>`. הצג את רשימת הקבצים המוצעת ואשר לפני יצירה.
 2. **נקה `<h1>`** — הסר גרשיים (`"`/`”`/`’`).
 3. **נקה טקסט** — `clean-text --file <f>` (נרמול גרשיים `''`→`"` ו‑`”`→`"`, רווחים כפולים, שורות ריקות).
 4. **הסר `<big>`** מכותרות ומשורות דקורטיביות בודדות (לא קולופון סיום).
-5. **נרמל כותרות `דף`** — `page-number --file <f> --style dot-colon` ו‑`replace-page-b` להמרת `עמוד ב`/גרש ל‑`.`/`:`. ⚠ שתי הפקודות פועלות **רק** כשהשורה אחרי כותרת ה‑`דף` עדיין נושאת סמן `ע"א`/`עמוד א`; אם דיקטה כבר הסירה אותו, הכותרת נשארת `דף יב` חשופה והפקודה היא no‑op שקט. **לכן אחרי ההרצה אמת שלא נותרה אף כותרת `דף` בלי `.`/`:`**: `grep -nE '<h[2-6]>דף [^.:<]*</h[2-6]>' <f>`. לכל דף חשוף הסק את העמוד מהרצף — דף הוא ברירת‑מחדל עמוד א (`.`); אם כבר קיים `דף N.` לאותו מספר, החשוף הוא עמוד ב (`:`). זו עבודת היגיון‑רצף (קטגוריה ι ב‑Stage 6), לא נורמול דטרמיניסטי.
-6. **הדגש מילה ראשונה** — `emphasize-first --file <f>` (מוסיף `<b>` + פיסוק סוף). הרחבת הלמה המלאה ומיזוג `<b>` עוקבים (מוסכמה §6) הם שיקול‑דעת ב‑Stage 4.
-7. **הפרד כותרות דבוקות לטקסט** — שורה שמתחילה `<h` ולא מסתיימת ב‑`>`: כותרת בשורה אחת, טקסט בשורה הבאה. אתר: `grep -nE '^<h[1-6]>' <f> | grep -vE '>[[:space:]]*$'`.
+5. **צור כותרות דטרמיניסטית** (הכלים שעורכי האנוש מריצים — העדף אותם על יצירה ידנית):
+   - `create-headers --file <f> --find דף --level <N>` — הופך כל שורת `דף <גימטריה>` לכותרת (וב‑`דף` גם קורא אוטומטית ל‑page-number).
+   - `create-headers --file <f> --find פרק --level <N>` — לכותרות `פרק <גימטריה>` (השם הקנוני של הפרק הוא שיקול‑דעת ל‑Stage 4).
+   - `create-page-b-headers --file <f> --level <N>` — יוצר כותרת `עמוד ב` מסמן `ע"ב` מוטבע בטקסט (זהו ה"יצרן" שלפני `replace-page-b`).
+   - `create-single-letter-headers --file <f> --level <N>` — בפוסקים: כותרות `סימן`/אות בודדת.
+   - **הרץ עם `--json`, סקור את הספירה, והצג למשתמש דוגמאות** לפני שממשיכים — לכלים יש מקרי‑שווא (למשל `דף` באמצע משפט). אל תאשר עיוורון.
+6. **נרמל כותרות `דף`** — `page-number --file <f> --style dot-colon` ו‑`replace-page-b` להמרת `עמוד ב`/גרש ל‑`.`/`:`. ⚠ שתי הפקודות פועלות **רק** כשהשורה אחרי כותרת ה‑`דף` עדיין נושאת סמן `ע"א`/`עמוד א`; אם דיקטה כבר הסירה אותו, הכותרת נשארת `דף יב` חשופה והפקודה היא no‑op שקט. **לכן אחרי ההרצה אמת שלא נותרה אף כותרת `דף` בלי `.`/`:`**: `grep -nE '<h[2-6]>דף [^.:<]*</h[2-6]>' <f>`. לכל דף חשוף הסק את העמוד מהרצף — דף הוא ברירת‑מחדל עמוד א (`.`); אם כבר קיים `דף N.` לאותו מספר, החשוף הוא עמוד ב (`:`). זו עבודת היגיון‑רצף (קטגוריה ι ב‑Stage 6), לא נורמול דטרמיניסטי.
+7. **תקן רמות היררכיה** — אם רמת כותרות שלמה שגויה (למשל הדפים יצאו `<h2>` אך צריכים `<h3>` כי יש מסכת מעליהם), השתמש ב‑`change-heading-level --file <f> --from 2 --to 3` במקום לערוך ידנית.
+8. **הדגש מילה ראשונה** — `emphasize-first --file <f>` (מוסיף `<b>` + פיסוק סוף). הרחבת הלמה המלאה ומיזוג `<b>` עוקבים (מוסכמה §6) הם שיקול‑דעת ב‑Stage 4.
+9. **הפרד כותרות דבוקות לטקסט** — שורה שמתחילה `<h` ולא מסתיימת ב‑`>`: כותרת בשורה אחת, טקסט בשורה הבאה. אתר: `grep -nE '^<h[1-6]>' <f> | grep -vE '>[[:space:]]*$'`.
 
-סיכום למשתמש: לכמה קבצים פוצל, כמה כותרות נורמלו, כמה מילים ראשונות הודגשו, כמה כותרות הופרדו.
+סיכום למשתמש: לכמה קבצים פוצל, כמה כותרות נוצרו/נורמלו בכל כלי, כמה מילים ראשונות הודגשו, כמה כותרות הופרדו.
 
 ## Stage 4 — Header proposal (LLM Pass A)
 
 **זה אתה.** טען את [prompts/headers.md](prompts/headers.md), קרא את הקובץ הנכנס, והפק הצעות כותרות.
+
+> **שלב זה הוא ה"שארית" בלבד.** רוב הכותרות המכניות (דף, עמוד ב, סימן, פרק לפי מספר) כבר נוצרו דטרמיניסטית ב‑Stage 3.5 ע"י כלי ה‑CLI. תפקידך כאן הוא **רק מה שהכלים לא יודעים**: כותרות שדורשות הבנת תוכן או ידע חיצוני — שם פרק קנוני (`האשה שנפלו - פרק שמיני`), החלטת רמה היררכית כשעמומה, כותרת שהוחמצה כי לא תאמה תבנית, ומקרים דו‑משמעיים. אם אתה מזהה תבנית מכנית חוזרת שכלי כלשהו יכול לתפוס — **חזור ל‑Stage 3.5 והרץ את הכלי**, אל תייצר ידנית עשרות כותרות זהות.
 
 עקרונות מחייבים:
 - אסור לערוך את הקובץ ישירות. הפק רק `headers.proposed.json` במבנה:
@@ -259,7 +282,7 @@ python3 .claude/skills/dicta-book-pipeline/scripts/ocr_batch.py --in-dir <pages>
 ## Stage 5 — OCR diff (LLM Pass D — only on flagged regions)
 
 ```bash
-python3 .claude/skills/dicta-book-pipeline/scripts/diff_texts.py --dicta <dicta.txt> --ocr <ocr.txt> --out /tmp/dicta_pipeline/<book>/diff.json --threshold 0.85
+python .claude/skills/dicta-book-pipeline/scripts/diff_texts.py --dicta <dicta.txt> --ocr <ocr.txt> --out /tmp/dicta_pipeline/<book>/diff.json --threshold 0.85
 ```
 
 הסקריפט מציג רק קטעים שבהם דמיון פאזי < threshold. עבור כל פער:
@@ -279,7 +302,7 @@ python3 .claude/skills/dicta-book-pipeline/scripts/diff_texts.py --dicta <dicta.
 
 **הרץ קודם את הגייט הדטרמיניסטי על כל קובץ פלט:**
 ```bash
-python3 ../EditingDictaBooks/edit_dicta_cli.py validate-otzaria --file <path> --shas   # יחסי לשורש הפרויקט; --shas לש"ס (עמוד ב כפול)
+python .claude/skills/dicta-book-pipeline/scripts/edit_dicta_cli.py validate-otzaria --file <path> --shas --json   # יחסי לשורש הפרויקט; --shas לש"ס (עמוד ב כפול)
 ```
 פקודה זו אוכפת את המוסכמות הדטרמיניסטיות שה‑CLI יודע לבדוק: תגים, כותרות עם טקסט נלווה, פיצול רב‑מסכתי, גרשיים ב‑`<h1>`, ו‑`<big>` בכותרת/דקורטיבי. היא **אינה** בודקת הבנת תוכן: האם הלמה מלאה, האם כל דיבור הסתיים כקטע עצמאי, האם קטע ארוך צריך פיצול, או האם כותרת פרק קנונית נכונה. קוד יציאה: **0 = עבר** (ירוק), **1 = הפרת מוסכמה קשה**. תקן כל בעיה "קשה" עד ש‑exit=0:
 `multi_masechta`, `h1_gershayim`, `big_in_heading`, `decorative_big`, `opening/closing_without_opening`, `heading_errors`.
@@ -357,6 +380,7 @@ curl -s -X PUT "https://otzaria.org/api/admin/uploads/batch-update-book-status" 
 - [scripts/pdf_to_pages.py](scripts/pdf_to_pages.py) — pdftoppm wrapper
 - [scripts/ocr_batch.py](scripts/ocr_batch.py) — שליחת עמודים במקביל ל‑OCR
 - [scripts/diff_texts.py](scripts/diff_texts.py) — השוואה fuzzy
+- [scripts/edit_dicta_cli.py](scripts/edit_dicta_cli.py) — ה‑CLI הדטרמיניסטי, עוטף 1:1 את כלי האפליקציה: `create-headers`, `create-single-letter-headers`, `create-page-b-headers`, `page-number`, `replace-page-b`, `change-heading-level`, `emphasize-first`, `clean-text`, `validate-tags`, `validate-otzaria`. עצמאי לחלוטין: הלוגיקה והתלויות מוטמעות תחת `scripts/_editlib/`. רץ עם כל `python`.
 
 הסקריפטים תומכים ב‑`--json` להוצאת פלט שמיש לעיבוד שלך.
 
